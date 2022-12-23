@@ -3,11 +3,13 @@
 
 """
 File: jd_pqdtk.py(店铺签到简化版)
-Date: 2022/12/10 02:50
-TG: https://t.me/InteIJ
+Date: 2022/12/19 23:17
+Channel: https://t.me/InteTU
+Group: https://t.me/InteIJ
 cron: 0 0 * * *
 new Env('店铺签到简化版');
 店铺签到简化版是根据开源的js店铺签到优化而来,优化程序运行的时长，让你在更短的时间内完成签到任务
+代理 export ALL_PROXY="协议://IP:端口"
 """
 import json
 import os
@@ -19,7 +21,6 @@ from datetime import datetime
 import requests
 from requests.exceptions import ProxyError
 from urllib3 import HTTPSConnectionPool
-from urllib3.exceptions import MaxRetryError
 
 try:
     from jdCookie import get_cookies
@@ -35,6 +36,7 @@ except Exception as e:
 msg = ''
 JD_API_HOST = 'https://api.m.jd.com/api?appid=interCenter_shopSign'
 lis = []
+ALL_PROXY = os.environ.get("ALL_PROXY") if os.environ.get("ALL_PROXY") else None
 
 
 def signCollectGift(cookie, token, venderId, activityId, typeId):
@@ -57,7 +59,7 @@ def signCollectGift(cookie, token, venderId, activityId, typeId):
             "referer": f"https://h5.m.jd.com/babelDiy/Zeus/2PAAf74aG3D61qvfKUM5dxUssJQ9/index.html?token=${token}&sceneval=2&jxsid=16105853541009626903&cu=true&utm_source=kong&utm_medium=jingfen&utm_campaign=t_1001280291_&utm_term=fa3f8f38c56f44e2b4bfc2f37bce9713",
             "User-Agent": get_user_agent()
         }
-        pq_data = requests.get(url, headers=headers, timeout=10)
+        pq_data = requests.get(url, headers=headers, timeout=10, proxies={"https": ALL_PROXY})
         # 筛选所有非200问题
         if pq_data.status_code != 200:
             print(f'失败token: : {token} 失败状态码: {pq_data.status_code}')
@@ -86,9 +88,6 @@ def signCollectGift(cookie, token, venderId, activityId, typeId):
         return [-2]
     except HTTPSConnectionPool:
         print(f"店铺: {token} 发生 HTTPSConnectionPool 异常,进行重试")
-        return [-2]
-    except MaxRetryError:
-        print(f"店铺: {token} 发生 MaxRetryError 最大重试次数异常,进行重试")
         return [-2]
     except Exception as e:
         print(f'失败token: {token} 签到异常: {e}')
@@ -119,9 +118,16 @@ def taskUrl(cookie, token, venderId, activityId, maximum, typeId, maxtime):
             "User-Agent": get_user_agent()
         }
         # 店铺获取签到
-        pq_data = requests.get(url, headers=headers, timeout=10)
+        pq_data = requests.get(url, headers=headers, timeout=10, proxies={"https": ALL_PROXY})
         # 筛选所有非200问题
-        if pq_data.status_code != 200:
+        if pq_data.status_code == 403:
+            print("触发403异常停止一分钟")
+            time.sleep(60)
+            return []
+        elif pq_data.status_code != 200:
+            print(f"触发状态码 {pq_data.status_code} 将删除店铺 {token}")
+            msg += f"触发状态码 {pq_data.status_code} 将删除店铺 {token}\n"
+            lis.append(token)
             return []
         days = re.findall('"days":(\d+)', pq_data.text)[0]
         print(f'店铺 {token} 已经签到 {days} 天')
@@ -131,8 +137,8 @@ def taskUrl(cookie, token, venderId, activityId, maximum, typeId, maxtime):
             # 删除签到满的店铺签到
             lis.append(token)
         elif int(days) < 2 and int(time.time()) + (86164 * int(maximum)) > maxtime:
-            print(f'检测到店铺 {token} 现在签到无法达到最大签到天数将自动本店铺')
-            msg += f'检测到店铺 {token} 现在签到无法达到最大签到天数将自动本店铺\n'
+            print(f'检测到店铺 {token} 现在签到无法达到最大签到天数将自动删除本店铺')
+            msg += f'检测到店铺 {token} 现在签到无法达到最大签到天数将自动删除本店铺\n'
             lis.append(token)
         if int(days) == 0:
             return [-1]
@@ -142,9 +148,6 @@ def taskUrl(cookie, token, venderId, activityId, maximum, typeId, maxtime):
         return [-2]
     except HTTPSConnectionPool:
         print(f"店铺: {token} 发生 HTTPSConnectionPool 异常,进行重试")
-        return [-2]
-    except MaxRetryError:
-        print(f"店铺: {token} 发生 MaxRetryError 最大重试次数异常,进行重试")
         return [-2]
     except Exception as e:
         print(f'店铺 {token} 获取签到信息异常: ', e)
@@ -219,7 +222,6 @@ if __name__ == '__main__':
                     continue
                 su3 = fotask(ck, token, js[token]['venderId'], js[token]['activityId'], js[token]['maximum'],
                              js[token]['typeId'], js[token]['time'])
-                print(su3)
                 if su3 and su3[0] == -1:
                     su += 1
                     if su > 5:
