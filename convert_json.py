@@ -13,14 +13,16 @@ except:
     sys.exit(3)
 """
 const $ = new Env("店铺签到转换为json格式")
-Date: 2022/11/15 10:00
+Date: 2022/12/26 20:41
 TG: https://t.me/InteIJ
 cron: 1
-export token="token2&token2"
+export ShopToken="token2&token2"
+代理 export ALL_PROXY="协议://IP:端口"
 """
 JD_API_HOST = 'https://api.m.jd.com/api?appid=interCenter_shopSign'
 # 使用数组保存减少后面其他CK请求时间
 data = []
+ALL_PROXY = os.environ.get("ALL_PROXY") if os.environ.get("ALL_PROXY") else None
 
 
 def getvenderId(token):
@@ -39,7 +41,8 @@ def getvenderId(token):
             # "cookie": cookie,
             "User-Agent": get_user_agent()
         }
-        pq_data = requests.get(url, headers=headers)  # proxies={"https":"socks5://127.0.0.1:9150"}
+        pq_data = requests.get(url, headers=headers,
+                               proxies={"https": ALL_PROXY})  # ALL_PROXY={"https":"socks5://127.0.0.1:9150"}
         if pq_data.status_code != 200:
             print(f'状态码: {pq_data.status_code}')
             return []
@@ -47,9 +50,9 @@ def getvenderId(token):
         if code and int(code[0]) == 200:
             return [re.findall('"venderId":(\d+),', pq_data.text)[0]]
         elif code and int(code[0]) != 200:
-            print(f"获取店铺ID1失败,返回状态码: {code[0]}, 请删除tk: {token}")
+            print(f"获取店铺获取失败,返回状态码: {code[0]}, 请删除tk: {token}")
         else:
-            print(f'获取店铺ID2失败,请删除tk: {token},没有返回状态码: {pq_data.text}')
+            print(f'获取店铺获取失败,请删除tk: {token},没有返回状态码: {pq_data.text}')
         return []
     except Exception as e:
         print('获取店铺ID异常: ', e)
@@ -70,7 +73,7 @@ def getvenderName(venderId):
             # "cookie": cookie,
             "User-Agent": get_user_agent()
         }
-        pq_data = requests.get(url, headers=headers)
+        pq_data = requests.get(url, headers=headers, proxies={"https": ALL_PROXY})
         if pq_data.status_code != 200:
             return []
         if 'shopName' in pq_data.json():
@@ -98,7 +101,7 @@ def getActivityInfo(token, venderId):
             "referer": f"https://h5.m.jd.com/babelDiy/Zeus/2PAAf74aG3D61qvfKUM5dxUssJQ9/index.html?token={token}&sceneval=2&jxsid=16105853541009626903&cu=true&utm_source=kong&utm_medium=jingfen&utm_campaign=t_1001280291_&utm_term=fa3f8f38c56f44e2b4bfc2f37bce9713",
             "User-Agent": get_user_agent()
         }
-        pq_data = requests.get(url=url, headers=headers)
+        pq_data = requests.get(url=url, headers=headers, proxies={"https": ALL_PROXY})
         if pq_data.status_code != 200:
             return []
         # print(pq_data.text)
@@ -228,21 +231,30 @@ def forCK(token: list):
 
 
 if __name__ == '__main__':
-    js = {}
-    filename = 'new.json'  # 'pqdtk.json'
+    filename = 'pqdtk.json'
+    if os.environ.get("ShopToken"):
+        ShopToken = os.environ.get("ShopToken")
+    else:
+        print('请设置变量格式\nexport ShopToken="token2&token2"')
+        sys.exit(3)
     try:
-        token = os.environ["token"]
-        if os.path.exists(filename) is False:
-            print('没有检测到同目录下有pqdtk.json存在')
-            sys.exit(3)
-        # with open(filename, mode='r', encoding='utf-8') as f:
-        #     token = json.load(f)
-    except Exception:
-        print('请填写配置文件export token="token2&token2"')
-        token = ""
-    # forCK(list(token.keys()))
-    forCK(list(token.split('&')))
+        with open(filename, mode='r', encoding='utf-8') as f:
+            js = json.load(f)
+    except FileNotFoundError:
+        # 如果文件不存在创建并写入{} js = {}
+        print(f"没有检测到{filename}存在开始创建")
+        fp = open(filename, 'w+', encoding='utf-8')
+        json.dump({}, fp, ensure_ascii=False, indent=4, sort_keys=True)
+        fp.close()
+        js = {}
+    except Exception as e:
+        print(f"发生异常事件: {e}")
+        sys.exit(3)
+    forCK(list(ShopToken.split('&')))
     for i in range(len(data)):
+        if int(time.time()) + (86164 * int(data[i][5])) > data[i][8]:
+            print(f"店铺 {data[i][0]} 无法达到最大签到天跳过添加")
+            continue
         js.setdefault(data[i][0], {
             "venderId": data[i][1],
             "activityId": data[i][2],
@@ -253,7 +265,6 @@ if __name__ == '__main__':
             "EndTime": data[i][7],
             "time": data[i][8]
         })
-    print(json.dumps(js, ensure_ascii=False, indent=4, sort_keys=True))
     with open(filename, mode='w+', encoding='utf-8') as f:
         json.dump(js, f, ensure_ascii=False, indent=4, sort_keys=True)
-    print(f'店铺签到转换成功，请去脚本所在目录查看{js}')
+    print(f'店铺签到转换成功，请去脚本所在目录查看{filename}')
