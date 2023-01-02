@@ -3,17 +3,19 @@ import os
 import re
 import sys
 import time
+from datetime import datetime
 
 import requests
 
 try:
     from USER_AGENTS import get_user_agent
+    from sendNotify import send
 except:
     print("缺少依赖文件USER_AGENTS.py 文件 https://github.com/XgzK/JD_annex/blob/master/USER_AGENTS.py 下载")
     sys.exit(3)
 """
 const $ = new Env("店铺签到转换为json格式")
-Date: 2022/12/26 20:41
+Date: 2022/12/30 17:30
 TG: https://t.me/InteIJ
 cron: 1
 export ShopToken="token2&token2"
@@ -22,6 +24,7 @@ export ShopToken="token2&token2"
 JD_API_HOST = 'https://api.m.jd.com/api?appid=interCenter_shopSign'
 # 使用数组保存减少后面其他CK请求时间
 data = []
+msg = ''
 ALL_PROXY = os.environ.get("ALL_PROXY") if os.environ.get("ALL_PROXY") else None
 
 
@@ -214,8 +217,13 @@ def forCK(token: list):
     :return:
     """
     # 遍历所有店铺
+    global msg
     for i in range(len(token)):
         time.sleep(1)
+        if token[i] in js:
+            print(f'{token[i]} 已经存在跳过录入')
+            msg += f'{token[i]} 已经存在跳过录入`\n'
+            continue
         venderId = getvenderId(token[i])
         if venderId:
             print(venderId)
@@ -252,9 +260,11 @@ if __name__ == '__main__':
         sys.exit(3)
     forCK(list(ShopToken.split('&')))
     for i in range(len(data)):
-        if int(time.time()) + (86164 * int(data[i][5])) > data[i][8]:
+        if int(time.time()) + (86164 * (int(data[i][5]) - 1)) > data[i][8]:
             print(f"店铺 {data[i][0]} 无法达到最大签到天跳过添加")
             continue
+        print(f"{data[i][0]} 录入 {filename} 成功")
+        msg += f"{data[i][0]} 录入 {filename} 成功\n"
         js.setdefault(data[i][0], {
             "venderId": data[i][1],
             "activityId": data[i][2],
@@ -268,3 +278,6 @@ if __name__ == '__main__':
     with open(filename, mode='w+', encoding='utf-8') as f:
         json.dump(js, f, ensure_ascii=False, indent=4, sort_keys=True)
     print(f'店铺签到转换成功，请去脚本所在目录查看{filename}')
+    title = "🗣消息提醒：店铺签到转换"
+    msg = f"⏰{str(datetime.now())[:19]}\n" + msg
+    send(title, msg)
