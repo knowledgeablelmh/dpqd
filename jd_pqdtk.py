@@ -3,13 +3,13 @@
 
 """
 File: jd_pqdtk.py(店铺签到简化版)
-Date: 2022/12/19 23:17
+Date: 2023/1/12 11:25
 Channel: https://t.me/InteTU
 Group: https://t.me/InteIJ
 cron: 0 0 * * *
 new Env('店铺签到简化版');
 店铺签到简化版是根据开源的js店铺签到优化而来,优化程序运行的时长，让你在更短的时间内完成签到任务
-代理 export ALL_PROXY="协议://IP:端口"
+代理 export JK_ALL_PROXY="协议://IP:端口"
 """
 import json
 import os
@@ -36,7 +36,7 @@ except Exception as e:
 msg = ''
 JD_API_HOST = 'https://api.m.jd.com/api?appid=interCenter_shopSign'
 lis = []
-ALL_PROXY = os.environ.get("ALL_PROXY") if os.environ.get("ALL_PROXY") else None
+JK_ALL_PROXY = os.environ.get("JK_ALL_PROXY") if os.environ.get("JK_ALL_PROXY") else None
 
 
 def signCollectGift(cookie, token, venderId, activityId, typeId):
@@ -59,7 +59,7 @@ def signCollectGift(cookie, token, venderId, activityId, typeId):
             "referer": f"https://h5.m.jd.com/babelDiy/Zeus/2PAAf74aG3D61qvfKUM5dxUssJQ9/index.html?token=${token}&sceneval=2&jxsid=16105853541009626903&cu=true&utm_source=kong&utm_medium=jingfen&utm_campaign=t_1001280291_&utm_term=fa3f8f38c56f44e2b4bfc2f37bce9713",
             "User-Agent": get_user_agent()
         }
-        pq_data = requests.get(url, headers=headers, timeout=10, proxies={"https": ALL_PROXY})
+        pq_data = requests.get(url, headers=headers, timeout=10, proxies={"https": JK_ALL_PROXY})
         # 筛选所有非200问题
         if pq_data.status_code != 200:
             print(f'失败token: : {token} 失败状态码: {pq_data.status_code}')
@@ -118,12 +118,12 @@ def taskUrl(cookie, token, venderId, activityId, maximum, typeId, maxtime):
             "User-Agent": get_user_agent()
         }
         # 店铺获取签到
-        pq_data = requests.get(url, headers=headers, timeout=10, proxies={"https": ALL_PROXY})
+        pq_data = requests.get(url, headers=headers, timeout=10, proxies={"https": JK_ALL_PROXY})
         # 筛选所有非200问题
         if pq_data.status_code == 403:
-            print("触发403异常停止一分钟")
-            time.sleep(60)
-            return []
+            print("触发403后边天数不再检测，请有时间手动检测")
+            msg += "触发403后边天数不再检测后面tk是否达到天数,退出任务，请有时间手动检测脚本\n"
+            return [403]
         elif pq_data.status_code != 200:
             print(f"触发状态码 {pq_data.status_code} 将删除店铺 {token}")
             msg += f"触发状态码 {pq_data.status_code} 将删除店铺 {token}\n"
@@ -174,6 +174,17 @@ def fo(cookie, token, venderId, activityId, typeId):
 
 
 def fotask(cookie, token, venderId, activityId, maximum, typeId, maxtime):
+    """
+
+    :param cookie:
+    :param token:
+    :param venderId:
+    :param activityId:
+    :param maximum:
+    :param typeId:
+    :param maxtime:
+    :return: 403结束
+    """
     aa = 0
     while True:
         ta = taskUrl(cookie, token, venderId, activityId, maximum, typeId, maxtime)
@@ -183,6 +194,8 @@ def fotask(cookie, token, venderId, activityId, maximum, typeId, maxtime):
             return ta
         elif ta and ta[0] == -2:
             aa += 1
+        if ta and ta[0] == 403:
+            return 403
         else:
             return ta
 
@@ -227,6 +240,8 @@ if __name__ == '__main__':
                     if su > 5:
                         print(f'CK{su2}连续获取五次零签到天数执行下一个CK')
                         break
+                elif su3 and su3[0] == -1:
+                    break
             except Exception as e:
                 print(e)
         su2 += 1
