@@ -19,13 +19,11 @@ Date: 2022/12/30 17:30
 TG: https://t.me/InteIJ
 cron: 1
 export ShopToken="token2&token2"
-代理 export ALL_PROXY="协议://IP:端口"
 """
 JD_API_HOST = 'https://api.m.jd.com/api?appid=interCenter_shopSign'
 # 使用数组保存减少后面其他CK请求时间
 data = []
 msg = ''
-ALL_PROXY = os.environ.get("ALL_PROXY") if os.environ.get("ALL_PROXY") else None
 
 
 def getvenderId(token):
@@ -44,8 +42,7 @@ def getvenderId(token):
             # "cookie": cookie,
             "User-Agent": get_user_agent()
         }
-        pq_data = requests.get(url, headers=headers,
-                               proxies={"https": ALL_PROXY})  # ALL_PROXY={"https":"socks5://127.0.0.1:9150"}
+        pq_data = requests.get(url, headers=headers)
         if pq_data.status_code != 200:
             print(f'状态码: {pq_data.status_code}')
             return []
@@ -76,7 +73,7 @@ def getvenderName(venderId):
             # "cookie": cookie,
             "User-Agent": get_user_agent()
         }
-        pq_data = requests.get(url, headers=headers, proxies={"https": ALL_PROXY})
+        pq_data = requests.get(url, headers=headers)
         if pq_data.status_code != 200:
             return []
         if 'shopName' in pq_data.json():
@@ -104,7 +101,7 @@ def getActivityInfo(token, venderId):
             "referer": f"https://h5.m.jd.com/babelDiy/Zeus/2PAAf74aG3D61qvfKUM5dxUssJQ9/index.html?token={token}&sceneval=2&jxsid=16105853541009626903&cu=true&utm_source=kong&utm_medium=jingfen&utm_campaign=t_1001280291_&utm_term=fa3f8f38c56f44e2b4bfc2f37bce9713",
             "User-Agent": get_user_agent()
         }
-        pq_data = requests.get(url=url, headers=headers, proxies={"https": ALL_PROXY})
+        pq_data = requests.get(url=url, headers=headers)
         if pq_data.status_code != 200:
             return []
         # print(pq_data.text)
