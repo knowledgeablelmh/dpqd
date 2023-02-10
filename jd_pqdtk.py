@@ -3,13 +3,12 @@
 
 """
 File: jd_pqdtk.py(店铺签到简化版)
-Date: 2023/1/12 11:25
+Date: 2023/1/17 14:40
 Channel: https://t.me/InteTU
 Group: https://t.me/InteIJ
 cron: 0 0 * * *
 new Env('店铺签到简化版');
 店铺签到简化版是根据开源的js店铺签到优化而来,优化程序运行的时长，让你在更短的时间内完成签到任务
-代理 export JK_ALL_PROXY="协议://IP:端口"
 """
 import json
 import os
@@ -20,23 +19,17 @@ from datetime import datetime
 
 import requests
 from requests.exceptions import ProxyError
-from urllib3 import HTTPSConnectionPool
 
-try:
-    from jdCookie import get_cookies
-    from USER_AGENTS import get_user_agent
-    from sendNotify import send
+from jdCookie import get_cookies
+from USER_AGENTS import get_user_agent
+from sendNotify import send
 
-    getCk = get_cookies()
-    if type(getCk) != list:
-        getCk = []
-except Exception as e:
-    print("缺少文件可能缺少其中一个，jdCookie.py sendNotify.py USER_AGENTS.py", e)
-    sys.exit(3)
+getCk = get_cookies()
+if type(getCk) != list:
+    getCk = []
 msg = ''
 JD_API_HOST = 'https://api.m.jd.com/api?appid=interCenter_shopSign'
 lis = []
-JK_ALL_PROXY = os.environ.get("JK_ALL_PROXY") if os.environ.get("JK_ALL_PROXY") else None
 
 
 def signCollectGift(cookie, token, venderId, activityId, typeId):
@@ -59,7 +52,7 @@ def signCollectGift(cookie, token, venderId, activityId, typeId):
             "referer": f"https://h5.m.jd.com/babelDiy/Zeus/2PAAf74aG3D61qvfKUM5dxUssJQ9/index.html?token=${token}&sceneval=2&jxsid=16105853541009626903&cu=true&utm_source=kong&utm_medium=jingfen&utm_campaign=t_1001280291_&utm_term=fa3f8f38c56f44e2b4bfc2f37bce9713",
             "User-Agent": get_user_agent()
         }
-        pq_data = requests.get(url, headers=headers, timeout=10, proxies={"https": JK_ALL_PROXY})
+        pq_data = requests.get(url, headers=headers, timeout=15)
         # 筛选所有非200问题
         if pq_data.status_code != 200:
             print(f'失败token: : {token} 失败状态码: {pq_data.status_code}')
@@ -85,9 +78,6 @@ def signCollectGift(cookie, token, venderId, activityId, typeId):
         return []
     except ProxyError:
         print(f"店铺: {token} 发生 ProxyError 代理异常,进行重试")
-        return [-2]
-    except HTTPSConnectionPool:
-        print(f"店铺: {token} 发生 HTTPSConnectionPool 异常,进行重试")
         return [-2]
     except Exception as e:
         print(f'失败token: {token} 签到异常: {e}')
@@ -118,7 +108,7 @@ def taskUrl(cookie, token, venderId, activityId, maximum, typeId, maxtime):
             "User-Agent": get_user_agent()
         }
         # 店铺获取签到
-        pq_data = requests.get(url, headers=headers, timeout=10, proxies={"https": JK_ALL_PROXY})
+        pq_data = requests.get(url, headers=headers, timeout=10)
         # 筛选所有非200问题
         if pq_data.status_code == 403:
             print("触发403后边天数不再检测，请有时间手动检测")
@@ -145,9 +135,6 @@ def taskUrl(cookie, token, venderId, activityId, maximum, typeId, maxtime):
         return [200]
     except ProxyError:
         print(f"店铺: {token} 发生 ProxyError 代理异常,进行重试")
-        return [-2]
-    except HTTPSConnectionPool:
-        print(f"店铺: {token} 发生 HTTPSConnectionPool 异常,进行重试")
         return [-2]
     except Exception as e:
         print(f'店铺 {token} 获取签到信息异常: ', e)
@@ -226,25 +213,23 @@ if __name__ == '__main__':
                 pass
         su2 += 1
     su2 = 0
-    for ck in getCk:
-        print(f'现在获取签到天数的是CK{su2}')
-        su = 0
-        for token in js.keys():
-            try:
-                if int(time.time()) > js[token]['time']:
-                    continue
-                su3 = fotask(ck, token, js[token]['venderId'], js[token]['activityId'], js[token]['maximum'],
-                             js[token]['typeId'], js[token]['time'])
-                if su3 and su3[0] == -1:
-                    su += 1
-                    if su > 5:
-                        print(f'CK{su2}连续获取五次零签到天数执行下一个CK')
-                        break
+    # 检测CK一的
+    print(f'现在获取签到天数仅检测CK一的')
+    su = 0
+    for token in js.keys():
+        try:
+            if int(time.time()) > js[token]['time']:
+                continue
+            su3 = fotask(getCk[0], token, js[token]['venderId'], js[token]['activityId'], js[token]['maximum'],
+                         js[token]['typeId'], js[token]['time'])
+            if su3 and su3[0] == -1:
+                su += 1
+                if su > 5:
+                    break
                 elif su3 and su3[0] == -1:
                     break
-            except Exception as e:
-                print(e)
-        su2 += 1
+        except Exception as e:
+            print(e)
     for i in lis:
         try:
             js.pop(i) if i in js else ""
